@@ -12,12 +12,27 @@ class TogglTimeRegistrationService
     
     TogglTimeEntry.transaction do
       already_loaded_ids = TogglTimeEntry.with_ids(latest_toggl_entries.map(&:id)).map(&:id)
+      new_entries = []
     
       latest_toggl_entries.each do |toggl_entry|
         next if already_loaded_ids.include?(toggl_entry.id)
 
         if create_time_entry(@user, toggl_entry)
           TogglTimeEntry.register_synced_entry(toggl_entry.id)
+          new_entries << toggl_entry.to_h.slice(:started_at, :issue_id, :description, :duration)
+        end
+      end
+
+      if new_entries.empty?
+        puts "No new time entries found (#{Time.now})."
+      else
+        puts "New time entries pushed to Redmine (#{Time.now}):"
+        if defined? Hirb
+          puts Hirb::Helpers::AutoTable.render(new_entries)
+        elsif respond_to? :ap
+          ap new_entries
+        else
+          pp new_entries
         end
       end
     end
